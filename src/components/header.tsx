@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Bus, Menu } from "lucide-react";
+import { Bus, Menu, UserCircle, LogOut, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -10,6 +10,8 @@ import {
   SheetClose,
 } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile.js";
+import { usePathname, useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 
 const NAV_LINKS = [
   { href: "/", label: "Home" },
@@ -20,6 +22,40 @@ const NAV_LINKS = [
 
 export function Header() {
   const isMobile = useIsMobile();
+  const pathname = usePathname();
+  const router = useRouter();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    
+    // Simple check for admin page
+    if (pathname.startsWith('/admin')) {
+        setIsAdmin(true);
+        setIsLoggedIn(true)
+    } else {
+        setIsAdmin(false);
+         // We consider the user logged in if they are on the dashboard page.
+        if (pathname.startsWith('/dashboard')) {
+            setIsLoggedIn(true);
+        } else {
+            // A simple check to see if we came from a login. A real app would use a better method.
+            const cameFromLogin = typeof document !== 'undefined' && (document.referrer.includes('sign-in') || document.referrer.includes('sign-up'));
+            if (pathname === '/dashboard' || (cameFromLogin && pathname ==='/')) {
+                setIsLoggedIn(true);
+            } else {
+                setIsLoggedIn(false);
+            }
+        }
+    }
+    }
+  , [pathname]);
+
+  const handleSignOut = () => {
+    setIsLoggedIn(false);
+    setIsAdmin(false);
+    router.push('/');
+  };
 
   const navLinks = (
     <>
@@ -38,6 +74,31 @@ export function Header() {
       </Button>
       <Button asChild style={{ backgroundColor: 'hsl(var(--accent))', color: 'hsl(var(--accent-foreground))' }}>
         <Link href="/sign-up">Sign Up</Link>
+      </Button>
+    </div>
+  );
+
+  const userButtons = (
+    <div className="flex gap-2 items-center">
+      {isAdmin ? (
+            <Button variant="ghost" asChild>
+            <Link href="/admin" className="flex items-center gap-2">
+                    <ShieldCheck />
+                    Admin Dashboard
+                </Link>
+            </Button>
+            ) : (
+            <Button variant="ghost" asChild>
+                <Link href="/dashboard" className="flex items-center gap-2">
+                    <UserCircle />
+                    My Account
+                </Link>
+            </Button>
+        )}
+        
+      <Button variant="outline" onClick={handleSignOut} className="flex items-center gap-2">
+        <LogOut />
+        Sign Out
       </Button>
     </div>
   );
@@ -67,16 +128,17 @@ export function Header() {
                     </Link>
                   </SheetClose>
                 ))}
+                
               </nav>
               <div className="mt-8 pt-4 border-t">
-                {authButtons}
+                {isLoggedIn ? userButtons : authButtons}
               </div>
             </SheetContent>
           </Sheet>
         ) : (
           <div className="flex items-center gap-4">
             <nav className="hidden md:flex gap-2">{navLinks}</nav>
-            {authButtons}
+            {isLoggedIn ? userButtons : authButtons}
           </div>
         )}
       </div>

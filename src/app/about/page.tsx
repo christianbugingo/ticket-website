@@ -20,7 +20,7 @@ export default function AboutPage() {
             src="https://placehold.co/1200x500.png"
             alt="A scenic road in Rwanda"
             width={1200}
-            height={500}
+            height={600}
             className="rounded-lg shadow-lg"
             data-ai-hint="scenic road rwanda"
           />

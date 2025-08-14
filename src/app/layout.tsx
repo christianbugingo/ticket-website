@@ -5,7 +5,7 @@ import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
 
 export const metadata: Metadata = {
-  title: 'ITIKE - Bus Booking in Rwanda',
+  title: 'ITIKE ',
   description: 'Easily book bus tickets for routes across all districts of Rwanda.',
 };
 

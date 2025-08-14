@@ -4,7 +4,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import Link from "next/link";
-import { Bus, UserPlus } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Bus, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -15,71 +16,56 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 
-const signUpSchema = z.object({
-  fullName: z.string().min(2, "Full name must be at least 2 characters."),
+const signInSchema = z.object({
   email: z.string().email("Invalid email address."),
-  password: z.string().min(8, "Password must be at least 8 characters."),
-}).refine(data => data.password, {
-    message: "Password is required",
-    path: ["password"],
+  password: z.string().min(1, "Password is required."),
 });
 
-type SignUpFormValues = z.infer<typeof signUpSchema>;
+type SignInFormValues = z.infer<typeof signInSchema>;
 
-export default function SignUpPage() {
+export default function SignInPage() {
   const { toast } = useToast();
-  const form = useForm<SignUpFormValues>({
-    resolver: zodResolver(signUpSchema),
+  const router = useRouter();
+  const form = useForm<SignInFormValues>({
+    resolver: zodResolver(signInSchema),
     defaultValues: {
-      fullName: "",
       email: "",
       password: "",
     },
   });
 
-  function onSubmit(data: SignUpFormValues) {
+  function onSubmit(data: SignInFormValues) {
     console.log(data);
-    // Here you would typically handle the user registration logic
+    // Here you would typically handle the authentication logic
     toast({
-      title: "Account Created Successfully!",
-      description: "You can now sign in with your new account.",
+      title: "Signed In Successfully!",
+      description: "Welcome back!",
     });
+    // Redirect to dashboard on successful login
+    router.push('/dashboard');
   }
 
   return (
     <div className="flex min-h-[calc(100vh-theme(spacing.16))] items-center justify-center bg-background px-4 py-12 sm:px-6 lg:px-8">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
-           <div className="mx-auto bg-primary text-primary-foreground rounded-full p-3 w-fit mb-4">
+          <div className="mx-auto bg-primary text-primary-foreground rounded-full p-3 w-fit mb-4">
             <Bus className="h-8 w-8" />
           </div>
           <h1 className="text-3xl font-bold tracking-tight text-primary">
-            Create an Account
+            Sign in to ITIKE
           </h1>
           <p className="mt-2 text-muted-foreground">
-            Join ITIKE to easily manage your bus bookings across Rwanda.
+            Access your account to view your booking history and manage your trips.
           </p>
         </div>
         <Card>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>
               <CardContent className="space-y-4 pt-6">
-                <FormField
-                  control={form.control}
-                  name="fullName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Full Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter your full name" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
                 <FormField
                   control={form.control}
                   name="email"
@@ -99,6 +85,12 @@ export default function SignUpPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Password</FormLabel>
+                      <div className="flex justify-between items-center">
+                        
+                        <Link href="/forgot-password" passHref legacyBehavior>
+                          <a className="text-sm font-medium text-primary hover:underline">Forgot?</a>
+                        </Link>
+                      </div>
                       <FormControl>
                         <Input type="password" placeholder="••••••••" {...field} />
                       </FormControl>
@@ -109,13 +101,13 @@ export default function SignUpPage() {
               </CardContent>
               <CardFooter className="flex flex-col gap-4">
                 <Button type="submit" className="w-full" style={{ backgroundColor: 'hsl(var(--accent))', color: 'hsl(var(--accent-foreground))' }}>
-                  <UserPlus className="mr-2 h-5 w-5"/>
-                  Sign Up
+                  <LogIn className="mr-2 h-5 w-5"/>
+                  Sign In
                 </Button>
                 <p className="text-sm text-muted-foreground">
-                  Already have an account?{" "}
-                  <Link href="/sign-in" className="font-medium text-primary hover:underline">
-                    Sign in
+                  Don't have an account?{" "}
+                  <Link href="/sign-up" className="font-medium text-primary hover:underline">
+                    Sign up
                   </Link>
                 </p>
               </CardFooter>

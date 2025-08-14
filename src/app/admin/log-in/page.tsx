@@ -4,7 +4,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import Link from "next/link";
-import { Bus, LogIn } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Bus, LogIn, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -18,30 +19,40 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 
-const signInSchema = z.object({
+const adminLoginSchema = z.object({
   email: z.string().email("Invalid email address."),
   password: z.string().min(1, "Password is required."),
 });
 
-type SignInFormValues = z.infer<typeof signInSchema>;
+type AdminLoginFormValues = z.infer<typeof adminLoginSchema>;
 
-export default function SignInPage() {
+export default function AdminLoginPage() {
   const { toast } = useToast();
-  const form = useForm<SignInFormValues>({
-    resolver: zodResolver(signInSchema),
+  const router = useRouter();
+  const form = useForm<AdminLoginFormValues>({
+    resolver: zodResolver(adminLoginSchema),
     defaultValues: {
       email: "",
       password: "",
     },
   });
 
-  function onSubmit(data: SignInFormValues) {
-    console.log(data);
-    // Here you would typically handle the authentication logic
-    toast({
-      title: "Signed In Successfully!",
-      description: "Welcome back!",
-    });
+  function onSubmit(data: AdminLoginFormValues) {
+    // In a real application, you'd validate against a secure backend.
+    // For this prototype, we'll use a simple check.
+    if (data.email === "admin@itike.rw" && data.password === "admin123") {
+      toast({
+        title: "Admin Sign In Successful!",
+        description: "Redirecting to the admin dashboard...",
+      });
+      router.push('/admin');
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Sign In Failed",
+        description: "Please check your email and password.",
+      });
+    }
   }
 
   return (
@@ -49,13 +60,13 @@ export default function SignInPage() {
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
           <div className="mx-auto bg-primary text-primary-foreground rounded-full p-3 w-fit mb-4">
-            <Bus className="h-8 w-8" />
+            <ShieldCheck className="h-8 w-8" />
           </div>
           <h1 className="text-3xl font-bold tracking-tight text-primary">
-            Sign in to ITIKE
+            Admin Access
           </h1>
           <p className="mt-2 text-muted-foreground">
-            Access your account to view your booking history and manage your trips.
+            Enter your credentials to manage the ITIKE platform.
           </p>
         </div>
         <Card>
@@ -69,7 +80,7 @@ export default function SignInPage() {
                     <FormItem>
                       <FormLabel>Email Address</FormLabel>
                       <FormControl>
-                        <Input type="email" placeholder="you@example.com" {...field} />
+                        <Input type="email" placeholder="admin@itike.rw" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -92,12 +103,12 @@ export default function SignInPage() {
               <CardFooter className="flex flex-col gap-4">
                 <Button type="submit" className="w-full" style={{ backgroundColor: 'hsl(var(--accent))', color: 'hsl(var(--accent-foreground))' }}>
                   <LogIn className="mr-2 h-5 w-5"/>
-                  Sign In
+                  Sign In as Admin
                 </Button>
-                <p className="text-sm text-muted-foreground">
-                  Don't have an account?{" "}
-                  <Link href="/sign-up" className="font-medium text-primary hover:underline">
-                    Sign up
+                 <p className="text-sm text-muted-foreground">
+                  Not an admin?{" "}
+                  <Link href="/" className="font-medium text-primary hover:underline">
+                    Go to homepage
                   </Link>
                 </p>
               </CardFooter>
