@@ -1,46 +1,31 @@
-import { PrismaClient } from '@prisma/client';
-import { Request, Response, NextFunction } from 'express';
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
-// Initialize Prisma Client
-const prisma = new PrismaClient();
-
-// Middleware function
-export const prismaMiddleware = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    // Attach Prisma client to the request object
-    req.prisma = prisma;
-
-    // Validate request body if needed (example for JSON content)
-    if (req.method === 'POST' || req.method === 'PUT') {
-      if (!req.is('application/json')) {
-        return res.status(400).json({ error: 'Content-Type must be application/json' });
-      }
+// This function can be marked `async` if using `await` inside
+export function middleware(request: NextRequest) {
+  // Add CORS headers for API routes
+  if (request.nextUrl.pathname.startsWith('/api/')) {
+    const response = NextResponse.next();
+    
+    // Add CORS headers
+    response.headers.set('Access-Control-Allow-Origin', '*');
+    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    
+    // Handle preflight requests
+    if (request.method === 'OPTIONS') {
+      return new NextResponse(null, { status: 200, headers: response.headers });
     }
-
-    // Proceed to the next middleware/route handler
-    next();
-  } catch (error) {
-    console.error('Prisma Middleware Error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    
+    return response;
   }
-};
-
-// Graceful shutdown handling
-process.on('SIGTERM', async () => {
-  await prisma.$disconnect();
-  process.exit(0);
-});
-
-process.on('SIGINT', async () => {
-  await prisma.$disconnect();
-  process.exit(0);
-});
-
-// Type augmentation for Express Request
-declare global {
-  namespace Express {
-    interface Request {
-      prisma: PrismaClient;
-    }
-  }
+  
+  return NextResponse.next();
 }
+
+export const config = {
+  matcher: [
+    '/api/:path*',
+    '/((?!_next/static|_next/image|favicon.ico).*)',
+  ],
+};
