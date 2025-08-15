@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth';
 import { z } from 'zod';
 
 const BookingSchema = z.object({
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     const bookingData = BookingSchema.parse(body);
 
     // Start transaction
-    const result = await prisma.$transaction(async (tx: typeof prisma) => {
+    const result = await prisma.$transaction(async (tx) => {
       // Check if schedule exists and has available seats
       const schedule = await tx.schedule.findUnique({
         where: { id: bookingData.scheduleId },

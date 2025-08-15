@@ -1,13 +1,15 @@
+"use client";
 
-"use client"
-
+import { useState, useEffect, useCallback } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
+} from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -15,27 +17,70 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
+} from "@/components/ui/table";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
-  ChartConfig
-} from "@/components/ui/chart"
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Users, Bus, Ticket, DollarSign, MoreHorizontal } from "lucide-react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+  ChartConfig,
+} from "@/components/ui/chart";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  ResponsiveContainer,
+} from "recharts";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Users,
+  Bus,
+  Ticket,
+  DollarSign,
+  MoreHorizontal,
+  Plus,
+  Building,
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useToast } from "@/hooks/use-toast";
+import Link from "next/link";
 
-const analyticsData = [
-  { name: 'Jan', revenue: 4000, bookings: 2400 },
-  { name: 'Feb', revenue: 3000, bookings: 1398 },
-  { name: 'Mar', revenue: 5000, bookings: 9800 },
-  { name: 'Apr', revenue: 4780, bookings: 3908 },
-  { name: 'May', revenue: 6890, bookings: 4800 },
-  { name: 'Jun', revenue: 7390, bookings: 3800 },
-];
+interface DashboardStats {
+  totalUsers: number;
+  totalBookings: number;
+  totalRevenue: number;
+  totalBuses: number;
+  totalCompanies: number;
+}
+
+interface RecentBooking {
+  id: number;
+  seatNumber: string;
+  status: string;
+  createdAt: string;
+  user: { name: string; email: string };
+  schedule: {
+    departure: string;
+    arrival: string;
+    price: number;
+    bus: { plateNumber: string; company: { name: string } };
+    route: { origin: string; destination: string } | null;
+  };
+}
+
+interface AnalyticsData {
+  name: string;
+  revenue: number;
+  bookings: number;
+}
 
 const chartConfig = {
   revenue: {
@@ -46,73 +91,241 @@ const chartConfig = {
     label: "Bookings",
     color: "hsl(var(--accent))",
   },
-} satisfies ChartConfig
+} satisfies ChartConfig;
 
-const mockUsers = [
-    { id: "USR001", name: "Alice Doe", email: "alice@example.com", dateJoined: "2024-01-15", status: "Active" },
-    { id: "USR002", name: "Bob Smith", email: "bob@example.com", dateJoined: "2024-02-10", status: "Active" },
-    { id: "USR003", name: "Charlie Brown", email: "charlie@example.com", dateJoined: "2024-03-20", status: "Suspended" },
-]
+export default function AdminDashboard() {
+  const { data: session } = useSession();
+  const router = useRouter();
+  const { toast } = useToast();
+  const [stats, setStats] = useState<DashboardStats>({
+    totalUsers: 0,
+    totalBookings: 0,
+    totalRevenue: 0,
+    totalBuses: 0,
+    totalCompanies: 0,
+  });
+  const [recentBookings, setRecentBookings] = useState<RecentBooking[]>([]);
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-const mockCompanies = [
-    { id: "CMP001", name: "Volcano Express", routes: 15, status: "Active" },
-    { id: "CMP002", name: "Horizon Express", routes: 12, status: "Active" },
-    { id: "CMP003", name: "Kigali Bus Services", routes: 20, status: "Pending Approval" },
-]
+  const fetchDashboardData = useCallback(async () => {
+    try {
+      setIsLoading(true);
 
-export default function AdminDashboardPage() {
+      // Fetch all data needed for dashboard using the existing API routes
+      const [bookingsRes, companiesRes, busesRes] = await Promise.all([
+        fetch("/api/bookings"),
+        fetch("/api/admin/companies"),
+        fetch("/api/admin/buses"),
+      ]);
+
+      const bookings = bookingsRes.ok ? await bookingsRes.json() : [];
+      const companies = companiesRes.ok ? await companiesRes.json() : [];
+      const buses = busesRes.ok ? await busesRes.json() : [];
+
+      // Calculate stats from real data
+      const totalRevenue = bookings.reduce(
+        (sum: number, booking: RecentBooking) =>
+          sum + (booking.schedule?.price || 0),
+        0
+      );
+
+      // Get unique users from bookings
+      const uniqueUsers = new Set(
+        bookings.map((booking: RecentBooking) => booking.user?.email)
+      ).size;
+
+      setStats({
+        totalUsers: uniqueUsers,
+        totalBookings: bookings.length,
+        totalRevenue,
+        totalBuses: buses.length,
+        totalCompanies: companies.length,
+      });
+
+      setRecentBookings(bookings.slice(0, 5));
+
+      // Generate monthly analytics data
+      const monthlyData = generateMonthlyAnalytics(bookings);
+      setAnalyticsData(monthlyData);
+    } catch (error) {
+      console.error("Failed to fetch dashboard data:", error);
+      toast({
+        title: "Error loading dashboard",
+        description: "Failed to load dashboard data. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [toast]);
+
+  const generateMonthlyAnalytics = (
+    bookings: RecentBooking[]
+  ): AnalyticsData[] => {
+    const months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+    const currentYear = new Date().getFullYear();
+
+    return months.map((month) => {
+      const monthBookings = bookings.filter((booking: RecentBooking) => {
+        const bookingDate = new Date(booking.createdAt);
+        return (
+          bookingDate.getFullYear() === currentYear &&
+          months[bookingDate.getMonth()] === month
+        );
+      });
+
+      return {
+        name: month,
+        revenue: monthBookings.reduce(
+          (sum: number, booking: RecentBooking) =>
+            sum + (booking.schedule?.price || 0),
+          0
+        ),
+        bookings: monthBookings.length,
+      };
+    });
+  };
+
+  useEffect(() => {
+    // Check if user is admin
+    if (session && session.user?.email !== "admin@itike.rw") {
+      router.push("/");
+      return;
+    }
+
+    if (session) {
+      fetchDashboardData();
+    }
+  }, [session, router, fetchDashboardData]);
+
+  if (!session) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Please Sign In</h1>
+          <p className="text-muted-foreground mb-4">
+            You need to sign in to access the admin dashboard.
+          </p>
+          <Link href="/sign-in">
+            <Button>Sign In</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (session.user?.email !== "admin@itike.rw") {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Access Denied</h1>
+          <p className="text-muted-foreground">
+            You need admin privileges to access this page.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p>Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto px-4 py-12 sm:px-6 lg:px-8">
       <div className="space-y-8">
         <div className="text-center">
-            <h1 className="text-4xl font-bold tracking-tight text-primary sm:text-5xl">
-                Admin Dashboard
-            </h1>
-            <p className="mt-2 text-lg text-muted-foreground">
-                Welcome, Admin. Here's an overview of your platform.
-            </p>
+          <h1 className="text-4xl font-bold tracking-tight text-primary sm:text-5xl">
+            Admin Dashboard
+          </h1>
+          <p className="mt-2 text-lg text-muted-foreground">
+            Welcome, Admin. Here&apos;s an overview of your platform.
+          </p>
         </div>
 
         {/* Analytics Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Total Revenue
+              </CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">45,231,890 RWF</div>
-              <p className="text-xs text-muted-foreground">+20.1% from last month</p>
+              <div className="text-2xl font-bold">
+                {stats.totalRevenue.toLocaleString()} RWF
+              </div>
+              <p className="text-xs text-muted-foreground">From all bookings</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Bookings</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Total Bookings
+              </CardTitle>
               <Ticket className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">+12,234</div>
-              <p className="text-xs text-muted-foreground">+180.1% from last month</p>
+              <div className="text-2xl font-bold">{stats.totalBookings}</div>
+              <p className="text-xs text-muted-foreground">All time bookings</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Registered Users</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Active Users
+              </CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">+2350</div>
-              <p className="text-xs text-muted-foreground">+34 since last hour</p>
+              <div className="text-2xl font-bold">{stats.totalUsers}</div>
+              <p className="text-xs text-muted-foreground">Registered users</p>
             </CardContent>
           </Card>
-           <Card>
+          <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Partner Companies</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Bus Companies
+              </CardTitle>
+              <Building className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.totalCompanies}</div>
+              <p className="text-xs text-muted-foreground">
+                Operating companies
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Buses</CardTitle>
               <Bus className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">+14</div>
-              <p className="text-xs text-muted-foreground">+2 waiting for approval</p>
+              <div className="text-2xl font-bold">{stats.totalBuses}</div>
+              <p className="text-xs text-muted-foreground">Active fleet</p>
             </CardContent>
           </Card>
         </div>
@@ -120,120 +333,162 @@ export default function AdminDashboardPage() {
         {/* Revenue Chart */}
         <Card>
           <CardHeader>
-            <CardTitle>Revenue and Bookings Overview</CardTitle>
-            <CardDescription>January - June 2024</CardDescription>
+            <CardTitle>Monthly Analytics</CardTitle>
+            <CardDescription>
+              Revenue and bookings overview for {new Date().getFullYear()}
+            </CardDescription>
           </CardHeader>
           <CardContent>
-             <ChartContainer config={chartConfig} className="h-[300px] w-full">
+            <ChartContainer config={chartConfig} className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={analyticsData}>
-                    <CartesianGrid vertical={false} />
-                    <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} />
-                    <YAxis />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Legend />
-                    <Bar dataKey="bookings" fill="var(--color-bookings)" radius={4} />
-                    <Bar dataKey="revenue" fill="var(--color-revenue)" radius={4} />
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar dataKey="revenue" fill="hsl(var(--primary))" />
+                  <Bar dataKey="bookings" fill="hsl(var(--accent))" />
                 </BarChart>
+              </ResponsiveContainer>
             </ChartContainer>
           </CardContent>
         </Card>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* User Management */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>User Management</CardTitle>
-                    <CardDescription>Manage all registered users.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Name</TableHead>
-                                <TableHead>Email</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead><span className="sr-only">Actions</span></TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {mockUsers.map(user => (
-                                <TableRow key={user.id}>
-                                    <TableCell className="font-medium">{user.name}</TableCell>
-                                    <TableCell>{user.email}</TableCell>
-                                    <TableCell>
-                                        <Badge variant={user.status === 'Active' ? 'secondary' : 'destructive'}>{user.status}</Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button aria-haspopup="true" size="icon" variant="ghost">
-                                                    <MoreHorizontal className="h-4 w-4" />
-                                                    <span className="sr-only">Toggle menu</span>
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                <DropdownMenuItem>Edit</DropdownMenuItem>
-                                                <DropdownMenuItem>Suspend</DropdownMenuItem>
-                                                <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
+        {/* Recent Bookings */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Recent Bookings</CardTitle>
+                <CardDescription>Latest bookings from users</CardDescription>
+              </div>
+              <Link href="/admin/schedules">
+                <Button size="sm">
+                  <Plus className="mr-2 h-4 w-4" />
+                  View All
+                </Button>
+              </Link>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Booking ID</TableHead>
+                  <TableHead>User</TableHead>
+                  <TableHead>Route</TableHead>
+                  <TableHead>Company</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {recentBookings.map((booking) => (
+                  <TableRow key={booking.id}>
+                    <TableCell className="font-medium">#{booking.id}</TableCell>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{booking.user.name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {booking.user.email}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {booking.schedule.route
+                        ? `${booking.schedule.route.origin} → ${booking.schedule.route.destination}`
+                        : "Route not specified"}
+                    </TableCell>
+                    <TableCell>{booking.schedule.bus.company.name}</TableCell>
+                    <TableCell>
+                      {booking.schedule.price.toLocaleString()} RWF
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          booking.status === "CONFIRMED"
+                            ? "default"
+                            : booking.status === "PENDING"
+                            ? "secondary"
+                            : "destructive"
+                        }
+                      >
+                        {booking.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {new Date(booking.createdAt).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuItem>View Details</DropdownMenuItem>
+                          <DropdownMenuItem>Update Status</DropdownMenuItem>
+                          <DropdownMenuItem className="text-red-600">
+                            Cancel Booking
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {recentBookings.length === 0 && (
+                  <TableRow>
+                    <TableCell
+                      colSpan={8}
+                      className="text-center py-8 text-muted-foreground"
+                    >
+                      No bookings found
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
 
-            {/* Bus Company Management */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Bus Company Management</CardTitle>
-                    <CardDescription>Manage partner bus companies.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Company Name</TableHead>
-                                <TableHead>Routes</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead><span className="sr-only">Actions</span></TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {mockCompanies.map(company => (
-                                <TableRow key={company.id}>
-                                    <TableCell className="font-medium">{company.name}</TableCell>
-                                    <TableCell>{company.routes}</TableCell>
-                                    <TableCell>
-                                        <Badge variant={company.status === 'Active' ? 'secondary' : 'default'}>{company.status}</Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button aria-haspopup="true" size="icon" variant="ghost">
-                                                    <MoreHorizontal className="h-4 w-4" />
-                                                    <span className="sr-only">Toggle menu</span>
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                <DropdownMenuItem>View Dashboard</DropdownMenuItem>
-                                                <DropdownMenuItem>Approve</DropdownMenuItem>
-                                                <DropdownMenuItem className="text-destructive">Revoke Access</DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
-        </div>
+        {/* Quick Actions */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Quick Actions</CardTitle>
+            <CardDescription>Manage your platform components</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <Link href="/admin/buses/add">
+                <Button className="w-full" variant="outline">
+                  <Bus className="mr-2 h-4 w-4" />
+                  Add New Bus
+                </Button>
+              </Link>
+              <Link href="/admin/routes">
+                <Button className="w-full" variant="outline">
+                  <Ticket className="mr-2 h-4 w-4" />
+                  Manage Routes
+                </Button>
+              </Link>
+              <Link href="/admin/schedules">
+                <Button className="w-full" variant="outline">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Schedule
+                </Button>
+              </Link>
+              <Button className="w-full" variant="outline">
+                <Users className="mr-2 h-4 w-4" />
+                View All Users
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
-  )
+  );
 }
