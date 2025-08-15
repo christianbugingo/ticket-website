@@ -17,7 +17,7 @@ export default async function RoutesPage() {
 
   const routes = await prisma.route.findMany({
     include: {
-      busCompany: {
+      company: {
         select: {
           name: true,
         },
