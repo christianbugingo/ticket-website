@@ -15,7 +15,14 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardFooter,
+} from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 
 const forgotPasswordSchema = z.object({
@@ -38,7 +45,8 @@ export default function ForgotPasswordPage() {
     // Here you would typically handle the password reset logic
     toast({
       title: "Password Reset Link Sent",
-      description: "If an account exists with that email, a reset link has been sent.",
+      description:
+        "If an account exists with that email, a reset link has been sent.",
     });
     form.reset();
   }
@@ -54,7 +62,8 @@ export default function ForgotPasswordPage() {
             Forgot Your Password?
           </h1>
           <p className="mt-2 text-muted-foreground">
-            No problem. Enter your email below and we'll send you a link to reset it.
+            No problem. Enter your email below and we&apos;ll send you a link to
+            reset it.
           </p>
         </div>
         <Card>
@@ -68,7 +77,11 @@ export default function ForgotPasswordPage() {
                     <FormItem>
                       <FormLabel>Email Address</FormLabel>
                       <FormControl>
-                        <Input type="email" placeholder="you@example.com" {...field} />
+                        <Input
+                          type="email"
+                          placeholder="you@example.com"
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -76,15 +89,26 @@ export default function ForgotPasswordPage() {
                 />
               </CardContent>
               <CardFooter className="flex flex-col gap-4">
-                 <Button type="submit" className="w-full" style={{ backgroundColor: 'hsl(var(--accent))', color: 'hsl(var(--accent-foreground))' }}>
-                  <KeyRound className="mr-2 h-5 w-5"/>
+                <Button
+                  type="submit"
+                  className="w-full"
+                  style={{
+                    backgroundColor: "hsl(var(--accent))",
+                    color: "hsl(var(--accent-foreground))",
+                  }}
+                >
+                  <KeyRound className="mr-2 h-5 w-5" />
                   Send Reset Link
                 </Button>
-                <Button variant="link" asChild className="text-sm text-muted-foreground">
-                   <Link href="/sign-in">
-                      <ArrowLeft className="mr-2 h-4 w-4"/>
-                      Back to Sign In
-                    </Link>
+                <Button
+                  variant="link"
+                  asChild
+                  className="text-sm text-muted-foreground"
+                >
+                  <Link href="/sign-in">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to Sign In
+                  </Link>
                 </Button>
               </CardFooter>
             </form>

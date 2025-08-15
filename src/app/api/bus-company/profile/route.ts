@@ -17,13 +17,13 @@ export async function GET() {
       select: { id: true, role: true },
     });
 
-    if (!user || user.role !== 'COMPANY_OWNER') {
+    if (!user || user.role !== 'BUS_OPERATOR') {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
-    // Find company by email (assuming user email matches company email)
-    const company = await prisma.company.findUnique({
-      where: { email: session.user.email },
+    // Find company by contact (assuming user email matches company contact)
+    const company = await prisma.busCompany.findUnique({
+      where: { contact: session.user.email },
       include: {
         buses: {
           select: {

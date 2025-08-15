@@ -33,12 +33,7 @@ export default async function SchedulesPage() {
             company: true,
           },
         },
-        route: {
-          select: {
-            origin: true,
-            destination: true,
-          },
-        },
+        route: true,
       },
       orderBy: {
         departure: "asc",
