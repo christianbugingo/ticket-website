@@ -6,17 +6,22 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
-import { Pencil, Trash2 } from "lucide-react"
-import { Route } from "@prisma/client"
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Pencil, Trash2 } from "lucide-react";
 
 interface RouteTableProps {
-  routes: (Route & {
-    busCompany: {
-      name: string
-    }
-  })[]
+  routes: Array<{
+    id: number;
+    origin: string;
+    destination: string;
+    distance: number | null;
+    duration: number | null;
+    company: {
+      name: string;
+    };
+    // Add other fields as needed
+  }>;
 }
 
 export function RouteTable({ routes }: RouteTableProps) {
@@ -39,7 +44,7 @@ export function RouteTable({ routes }: RouteTableProps) {
             <TableCell>{route.destination}</TableCell>
             <TableCell>{route.distance}</TableCell>
             <TableCell>{route.duration}</TableCell>
-            <TableCell>{route.busCompany.name}</TableCell>
+            <TableCell>{route.company.name}</TableCell>
             <TableCell className="text-right">
               <div className="flex gap-2 justify-end">
                 <Button variant="outline" size="sm">
@@ -56,5 +61,5 @@ export function RouteTable({ routes }: RouteTableProps) {
         ))}
       </TableBody>
     </Table>
-  )
+  );
 }

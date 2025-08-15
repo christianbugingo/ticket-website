@@ -93,4 +93,4 @@ enum BookingStatus {
   PENDING
   CONFIRMED
   CANCELLED
-}npx prisma generate
+}
