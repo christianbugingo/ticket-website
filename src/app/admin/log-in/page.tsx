@@ -1,11 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bus, LogIn, ShieldCheck } from "lucide-react";
+import { signIn } from "next-auth/react";
+import { Bus, LogIn, ShieldCheck, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -16,7 +18,14 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardFooter,
+} from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 
 const adminLoginSchema = z.object({
@@ -29,6 +38,9 @@ type AdminLoginFormValues = z.infer<typeof adminLoginSchema>;
 export default function AdminLoginPage() {
   const { toast } = useToast();
   const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
   const form = useForm<AdminLoginFormValues>({
     resolver: zodResolver(adminLoginSchema),
     defaultValues: {
@@ -37,23 +49,48 @@ export default function AdminLoginPage() {
     },
   });
 
-  function onSubmit(data: AdminLoginFormValues) {
-    // In a real application, you'd validate against a secure backend.
-    // For this prototype, we'll use a simple check.
-    if (data.email === "admin@itike.rw" && data.password === "admin123") {
-      toast({
-        title: "Admin Sign In Successful!",
-        description: "Redirecting to the admin dashboard...",
+  const onSubmit = async (data: AdminLoginFormValues) => {
+    setIsLoading(true);
+    try {
+      const result = await signIn("credentials", {
+        email: data.email,
+        password: data.password,
+        redirect: false,
       });
-      router.push('/admin');
-    } else {
+
+      if (result?.error) {
+        toast({
+          title: "Sign in failed",
+          description: "Invalid admin credentials. Please try again.",
+          variant: "destructive",
+        });
+      } else {
+        // Check if user is admin after successful login
+        const response = await fetch("/api/admin/verify");
+        if (response.ok) {
+          toast({
+            title: "Admin access granted",
+            description: "Welcome to the ITIKE admin dashboard.",
+          });
+          router.push("/admin");
+        } else {
+          toast({
+            title: "Access denied",
+            description: "You don't have admin privileges.",
+            variant: "destructive",
+          });
+        }
+      }
+    } catch {
       toast({
+        title: "Sign in failed",
+        description: "Something went wrong. Please try again.",
         variant: "destructive",
-        title: "Sign In Failed",
-        description: "Please check your email and password.",
       });
+    } finally {
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <div className="flex min-h-[calc(100vh-theme(spacing.16))] items-center justify-center bg-background px-4 py-12 sm:px-6 lg:px-8">
@@ -69,10 +106,20 @@ export default function AdminLoginPage() {
             Enter your credentials to manage the ITIKE platform.
           </p>
         </div>
+
         <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <LogIn className="h-5 w-5" />
+              Admin Sign In
+            </CardTitle>
+            <CardDescription>
+              Access the administrative dashboard
+            </CardDescription>
+          </CardHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>
-              <CardContent className="space-y-4 pt-6">
+              <CardContent className="space-y-4">
                 <FormField
                   control={form.control}
                   name="email"
@@ -80,7 +127,12 @@ export default function AdminLoginPage() {
                     <FormItem>
                       <FormLabel>Email Address</FormLabel>
                       <FormControl>
-                        <Input type="email" placeholder="admin@itike.rw" {...field} />
+                        <Input
+                          type="email"
+                          placeholder="admin@itike.rw"
+                          {...field}
+                          disabled={isLoading}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -93,7 +145,28 @@ export default function AdminLoginPage() {
                     <FormItem>
                       <FormLabel>Password</FormLabel>
                       <FormControl>
-                        <Input type="password" placeholder="••••••••" {...field} />
+                        <div className="relative">
+                          <Input
+                            type={showPassword ? "text" : "password"}
+                            placeholder="••••••••"
+                            {...field}
+                            disabled={isLoading}
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                            onClick={() => setShowPassword(!showPassword)}
+                            disabled={isLoading}
+                          >
+                            {showPassword ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -101,19 +174,56 @@ export default function AdminLoginPage() {
                 />
               </CardContent>
               <CardFooter className="flex flex-col gap-4">
-                <Button type="submit" className="w-full" style={{ backgroundColor: 'hsl(var(--accent))', color: 'hsl(var(--accent-foreground))' }}>
-                  <LogIn className="mr-2 h-5 w-5"/>
-                  Sign In as Admin
+                <Button
+                  type="submit"
+                  className="w-full"
+                  style={{
+                    backgroundColor: "hsl(var(--accent))",
+                    color: "hsl(var(--accent-foreground))",
+                  }}
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Signing in...
+                    </div>
+                  ) : (
+                    <>
+                      <LogIn className="mr-2 h-5 w-5" />
+                      Sign In as Admin
+                    </>
+                  )}
                 </Button>
-                 <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   Not an admin?{" "}
-                  <Link href="/" className="font-medium text-primary hover:underline">
+                  <Link
+                    href="/"
+                    className="font-medium text-primary hover:underline"
+                  >
                     Go to homepage
                   </Link>
                 </p>
               </CardFooter>
             </form>
           </Form>
+        </Card>
+
+        {/* Demo Credentials */}
+        <Card className="bg-accent/10 border-accent/20">
+          <CardContent className="p-4">
+            <h3 className="text-sm font-semibold text-accent-foreground mb-2">
+              Demo Admin Credentials:
+            </h3>
+            <div className="text-xs text-muted-foreground space-y-1">
+              <p>
+                <strong>Email:</strong> admin@itike.rw
+              </p>
+              <p>
+                <strong>Password:</strong> admin123
+              </p>
+            </div>
+          </CardContent>
         </Card>
       </div>
     </div>

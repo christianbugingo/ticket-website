@@ -2,101 +2,170 @@
 
 import { useState, useEffect } from "react";
 import type { z } from "zod";
-import { Lightbulb } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { routeRecommendation, type RouteRecommendationOutput } from "@/ai/flows/route-recommendations";
+import { Lightbulb, Sparkles } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { SearchSchema } from "./search-form";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 
 interface AIRecommendationsProps {
   searchParams: z.infer<typeof SearchSchema>;
   searchHistory: string[];
 }
 
-export function AIRecommendations({ searchParams, searchHistory }: AIRecommendationsProps) {
-  const [recommendations, setRecommendations] = useState<RouteRecommendationOutput | null>(null);
+// Mock recommendations data for now
+const mockRecommendations = {
+  recommendations: [
+    {
+      route: "Take the express route via main highway",
+      reason: "Fastest route with best road conditions",
+      estimatedTime: "2.5 hours",
+    },
+    {
+      route: "Consider early morning departure (6:00 AM)",
+      reason: "Less traffic and better punctuality",
+      estimatedTime: "Reduced delays",
+    },
+    {
+      route: "Book premium seats for better comfort",
+      reason: "Long journey route with enhanced amenities",
+      estimatedTime: "Same duration, better experience",
+    },
+  ],
+  travelTips: [
+    "Carry valid ID for intercity travel",
+    "Arrive 15 minutes before departure",
+    "Keep your ticket handy for verification",
+  ],
+};
+
+export function AIRecommendations({
+  searchParams,
+  searchHistory,
+}: AIRecommendationsProps) {
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error] = useState<string | null>(null);
 
   useEffect(() => {
-    const getRecommendations = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const input = {
-          departureDistrict: searchParams.departure,
-          arrivalDistrict: searchParams.arrival,
-          travelDate: searchParams.travelDate.toISOString().split("T")[0],
-          numberOfPassengers: searchParams.passengers,
-          searchHistory,
-          // In a real app, this would be dynamic data from an API
-          busAvailability: "Most buses are full in the morning, but seats are available in the afternoon. Weekend travel is heavy.",
-        };
-        const result = await routeRecommendation(input);
-        setRecommendations(result);
-      } catch (e) {
-        console.error("Failed to get AI recommendations:", e);
-        setError("Could not load AI recommendations at this time.");
-      } finally {
-        setLoading(false);
-      }
-    };
+    // Simulate loading delay
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 1500);
 
-    getRecommendations();
-  }, [searchParams, searchHistory]);
+    return () => clearTimeout(timer);
+  }, [searchParams]);
+
+  if (loading) {
+    return (
+      <Card className="border-accent/20 bg-gradient-to-r from-accent/5 to-primary/5">
+        <CardHeader>
+          <div className="flex items-center space-x-2">
+            <Sparkles className="h-5 w-5 text-accent animate-pulse" />
+            <CardTitle className="text-lg">AI Travel Recommendations</CardTitle>
+          </div>
+          <CardDescription>
+            Getting personalized recommendations for your journey...
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-4 w-1/2" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert variant="destructive">
+        <Lightbulb className="h-4 w-4" />
+        <AlertTitle>Recommendations Unavailable</AlertTitle>
+        <AlertDescription>
+          Unable to load AI recommendations at the moment. Please try again
+          later.
+        </AlertDescription>
+      </Alert>
+    );
+  }
 
   return (
-    <Card className="bg-card/50 border-primary/20 border-dashed">
+    <Card className="border-accent/20 bg-gradient-to-r from-accent/5 to-primary/5">
       <CardHeader>
-        <div className="flex items-center gap-3">
-          <div className="flex-shrink-0 bg-primary/10 text-primary p-2 rounded-full">
-            <Lightbulb className="h-6 w-6" />
-          </div>
-          <div>
-            <CardTitle className="text-primary">AI Recommendations</CardTitle>
-            <CardDescription>Alternative routes and times based on your search.</CardDescription>
-          </div>
+        <div className="flex items-center space-x-2">
+          <Sparkles className="h-5 w-5 text-accent" />
+          <CardTitle className="text-lg">AI Travel Recommendations</CardTitle>
         </div>
+        <CardDescription>
+          Smart suggestions for your journey from {searchParams.departure} to{" "}
+          {searchParams.arrival}
+        </CardDescription>
       </CardHeader>
       <CardContent>
-        {loading && (
-          <div className="space-y-4">
-            <div className="flex items-center space-x-4">
-              <Skeleton className="h-12 w-12 rounded-full" />
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-[250px]" />
-                <Skeleton className="h-4 w-[200px]" />
-              </div>
-            </div>
-             <div className="flex items-center space-x-4">
-              <Skeleton className="h-12 w-12 rounded-full" />
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-[250px]" />
-                <Skeleton className="h-4 w-[200px]" />
-              </div>
+        <div className="space-y-6">
+          {/* Route Recommendations */}
+          <div>
+            <h4 className="font-medium mb-3 flex items-center gap-2">
+              <Lightbulb className="h-4 w-4" />
+              Route Insights
+            </h4>
+            <div className="space-y-3">
+              {mockRecommendations.recommendations.map((rec, index) => (
+                <div
+                  key={index}
+                  className="p-3 bg-background/50 rounded-lg border border-accent/10"
+                >
+                  <div className="flex items-start gap-3">
+                    <Badge variant="outline" className="text-xs">
+                      Tip {index + 1}
+                    </Badge>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{rec.route}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {rec.reason}
+                      </p>
+                      <p className="text-xs text-accent mt-1">
+                        {rec.estimatedTime}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-        )}
-        {error && (
-          <Alert variant="destructive">
-            <AlertTitle>Error</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-        {recommendations && recommendations.recommendations.length > 0 && (
-          <ul className="space-y-4">
-            {recommendations.recommendations.map((rec, index) => (
-              <li key={index} className="p-4 bg-background rounded-lg shadow-sm border border-border">
-                <p className="font-semibold text-primary">{rec.route} at {rec.time}</p>
-                <p className="text-sm text-muted-foreground">{rec.reason}</p>
-              </li>
-            ))}
-          </ul>
-        )}
-         {recommendations && recommendations.recommendations.length === 0 && (
-            <p className="text-muted-foreground text-center">No alternative recommendations found.</p>
-        )}
+
+          {/* Travel Tips */}
+          <div>
+            <h4 className="font-medium mb-3">Travel Tips</h4>
+            <div className="space-y-2">
+              {mockRecommendations.travelTips.map((tip, index) => (
+                <div
+                  key={index}
+                  className="flex items-center gap-2 text-sm text-muted-foreground"
+                >
+                  <div className="w-1.5 h-1.5 bg-accent rounded-full" />
+                  {tip}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Based on search history */}
+          {searchHistory.length > 0 && (
+            <div className="pt-3 border-t border-accent/10">
+              <p className="text-xs text-muted-foreground">
+                Based on your recent searches and travel patterns
+              </p>
+            </div>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

@@ -2,13 +2,15 @@
 
 import { useState } from "react";
 import type { z } from "zod";
-import { Bus, Lightbulb, Ticket, CheckCircle2, ArrowLeft } from "lucide-react";
+import { Bus, ArrowLeft } from "lucide-react";
 import { SearchForm, type SearchSchema } from "@/components/search-form";
 import { RouteResults } from "@/components/route-results";
 import { AIRecommendations } from "@/components/ai-recommendations";
 import { PaymentForm } from "@/components/payment-form";
 import { BookingConfirmation } from "@/components/booking-confirmation";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { api } from "@/lib/api";
 
 export type Route = {
   id: string;
@@ -19,11 +21,15 @@ export type Route = {
   duration: string;
   price: number;
   availableSeats: number;
+  scheduleId: number;
+  busId: number;
+  routeId: number | null;
 };
 
 type Step = "search" | "results" | "payment" | "confirmed";
 
 export default function Home() {
+  const { toast } = useToast();
   const [step, setStep] = useState<Step>("search");
   const [searchParams, setSearchParams] = useState<z.infer<
     typeof SearchSchema
@@ -31,92 +37,42 @@ export default function Home() {
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [routes, setRoutes] = useState<Route[]>([]);
   const [selectedRoute, setSelectedRoute] = useState<Route | null>(null);
-
-  const MOCK_ROUTES: Route[] = [
-    {
-      id: "1",
-      agency: "Volcano Express",
-      agencyLogoUrl: "https://placehold.co/40x40.png",
-      departureTime: "08:00",
-      arrivalTime: "10:30",
-      duration: "2h 30m",
-      price: 3500,
-      availableSeats: 15,
-    },
-    {
-      id: "2",
-      agency: "Horizon Express",
-      agencyLogoUrl: "https://placehold.co/40x40.png",
-      departureTime: "09:30",
-      arrivalTime: "12:00",
-      duration: "2h 30m",
-      price: 3400,
-      availableSeats: 5,
-    },
-    {
-      id: "3",
-      agency: "Kigali Bus Services",
-      agencyLogoUrl: "https://placehold.co/40x40.png",
-      departureTime: "11:00",
-      arrivalTime: "13:45",
-      duration: "2h 45m",
-      price: 3600,
-      availableSeats: 22,
-    },
-    {
-      id: "4",
-      agency: "Virunga Express",
-      agencyLogoUrl: "https://placehold.co/40x40.png",
-      departureTime: "14:00",
-      arrivalTime: "16:30",
-      duration: "2h 30m",
-      price: 3500,
-      availableSeats: 10,
-    },
-  ];
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSearch = async (data: z.infer<typeof SearchSchema>) => {
-    setSearchParams(data);
-    const searchString = `${data.departure} to ${
-      data.arrival
-    } on ${data.travelDate.toLocaleDateString()}`;
-    setSearchHistory((prev) => [...prev, searchString].slice(-5)); // Keep last 5 searches
-
+    setIsLoading(true);
     try {
-      // Call the real API
-      const searchParams = new URLSearchParams({
+      setSearchParams(data);
+      const searchString = `${data.departure} to ${
+        data.arrival
+      } on ${data.travelDate.toLocaleDateString()}`;
+      setSearchHistory((prev) => [...prev, searchString].slice(-5));
+
+      // Use the API utility for better error handling
+      const searchResults = await api.searchRoutes({
         departure: data.departure,
         arrival: data.arrival,
-        travelDate: data.travelDate.toISOString(),
-        passengers: data.passengers.toString(),
+        travelDate: data.travelDate.toISOString().split("T")[0],
+        passengers: data.passengers,
       });
 
-      const response = await fetch(`/api/routes/search?${searchParams}`);
-      if (response.ok) {
-        const apiRoutes = await response.json();
-        setRoutes(apiRoutes);
-      } else {
-        // Fallback to mock data if API fails
-        console.error("API call failed, using mock data");
-        setRoutes(
-          MOCK_ROUTES.map((r) => ({
-            ...r,
-            price: r.price + Math.floor(Math.random() * 500 - 250),
-          }))
-        );
-      }
+      setRoutes(searchResults);
+      setStep("results");
     } catch (error) {
-      // Fallback to mock data if API fails
-      console.error("API call failed, using mock data:", error);
-      setRoutes(
-        MOCK_ROUTES.map((r) => ({
-          ...r,
-          price: r.price + Math.floor(Math.random() * 500 - 250),
-        }))
-      );
+      console.error("Search failed:", error);
+      toast({
+        title: "Search Failed",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to search routes. Please try again.",
+        variant: "destructive",
+      });
+      // Set empty routes on error instead of mock data
+      setRoutes([]);
+    } finally {
+      setIsLoading(false);
     }
-
-    setStep("results");
   };
 
   const handleSelectRoute = (route: Route) => {
@@ -124,9 +80,45 @@ export default function Home() {
     setStep("payment");
   };
 
-  const handlePayment = () => {
-    // In a real app, payment processing would happen here.
-    setStep("confirmed");
+  const handlePayment = async (paymentData: {
+    paymentMethod: "mtn_mobile_money" | "credit_card";
+    paymentDetails: {
+      phoneNumber?: string;
+      cardNumber?: string;
+      expiryDate?: string;
+      cvv?: string;
+    };
+  }) => {
+    setIsLoading(true);
+    try {
+      if (!selectedRoute) return;
+
+      await api.createBooking({
+        scheduleId: selectedRoute.scheduleId,
+        seatNumber: `A${Math.floor(Math.random() * 50) + 1}`, // Generate random seat for now
+        paymentMethod: paymentData.paymentMethod,
+        paymentDetails: paymentData.paymentDetails,
+      });
+
+      toast({
+        title: "Booking Confirmed!",
+        description: "Your booking has been successfully created.",
+      });
+
+      setStep("confirmed");
+    } catch (error) {
+      console.error("Payment failed:", error);
+      toast({
+        title: "Payment Failed",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Payment processing failed. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleReset = () => {
@@ -144,7 +136,7 @@ export default function Home() {
   const renderStep = () => {
     switch (step) {
       case "search":
-        return <SearchForm onSearch={handleSearch} />;
+        return <SearchForm onSearch={handleSearch} isLoading={isLoading} />;
       case "results":
         return (
           <div className="space-y-8">
@@ -175,28 +167,6 @@ export default function Home() {
             onReset={handleReset}
           />
         );
-    }
-  };
-
-  const getStepInfo = () => {
-    switch (step) {
-      case "search":
-        return { icon: <Bus className="h-6 w-6" />, title: "Search for a Bus" };
-      case "results":
-        return {
-          icon: <Ticket className="h-6 w-6" />,
-          title: "Available Routes",
-        };
-      case "payment":
-        return {
-          icon: <Lightbulb className="h-6 w-6" />,
-          title: "Complete Your Booking",
-        };
-      case "confirmed":
-        return {
-          icon: <CheckCircle2 className="h-6 w-6" />,
-          title: "Booking Confirmed",
-        };
     }
   };
 
