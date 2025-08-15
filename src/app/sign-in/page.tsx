@@ -1,11 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bus, LogIn } from "lucide-react";
+import { signIn } from "next-auth/react";
+import { Bus, LogIn, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -16,7 +18,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 
 const signInSchema = z.object({
@@ -29,6 +31,9 @@ type SignInFormValues = z.infer<typeof signInSchema>;
 export default function SignInPage() {
   const { toast } = useToast();
   const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
   const form = useForm<SignInFormValues>({
     resolver: zodResolver(signInSchema),
     defaultValues: {
@@ -37,16 +42,38 @@ export default function SignInPage() {
     },
   });
 
-  function onSubmit(data: SignInFormValues) {
-    console.log(data);
-    // Here you would typically handle the authentication logic
-    toast({
-      title: "Signed In Successfully!",
-      description: "Welcome back!",
-    });
-    // Redirect to dashboard on successful login
-    router.push('/dashboard');
-  }
+  const onSubmit = async (data: SignInFormValues) => {
+    setIsLoading(true);
+    try {
+      const result = await signIn("credentials", {
+        email: data.email,
+        password: data.password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        toast({
+          title: "Sign in failed",
+          description: "Invalid email or password. Please try again.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Signed in successfully!",
+          description: "Welcome back to ITIKE!",
+        });
+        router.push("/dashboard");
+      }
+    } catch {
+      toast({
+        title: "Sign in failed",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="flex min-h-[calc(100vh-theme(spacing.16))] items-center justify-center bg-background px-4 py-12 sm:px-6 lg:px-8">
@@ -59,13 +86,25 @@ export default function SignInPage() {
             Sign in to ITIKE
           </h1>
           <p className="mt-2 text-muted-foreground">
-            Access your account to view your booking history and manage your trips.
+            Access your account to view your booking history and manage your
+            trips.
           </p>
         </div>
+
         <Card>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)}>
-              <CardContent className="space-y-4 pt-6">
+          <CardContent className="p-6">
+            <div className="mb-4">
+              <h2 className="flex items-center gap-2 text-lg font-semibold">
+                <LogIn className="h-5 w-5" />
+                Sign In
+              </h2>
+            </div>
+
+            <Form {...form}>
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="space-y-4"
+              >
                 <FormField
                   control={form.control}
                   name="email"
@@ -73,46 +112,79 @@ export default function SignInPage() {
                     <FormItem>
                       <FormLabel>Email Address</FormLabel>
                       <FormControl>
-                        <Input type="email" placeholder="you@example.com" {...field} />
+                        <Input
+                          type="email"
+                          placeholder="you@example.com"
+                          {...field}
+                          disabled={isLoading}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+
                 <FormField
                   control={form.control}
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Password</FormLabel>
                       <div className="flex justify-between items-center">
-                        
-                        <Link href="/forgot-password" passHref legacyBehavior>
-                          <a className="text-sm font-medium text-primary hover:underline">Forgot?</a>
+                        <FormLabel>Password</FormLabel>
+                        <Link
+                          href="/forgot-password"
+                          className="text-sm font-medium text-primary hover:underline"
+                        >
+                          Forgot password?
                         </Link>
                       </div>
                       <FormControl>
-                        <Input type="password" placeholder="••••••••" {...field} />
+                        <div className="relative">
+                          <Input
+                            type={showPassword ? "text" : "password"}
+                            placeholder="Enter your password"
+                            {...field}
+                            disabled={isLoading}
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                            onClick={() => setShowPassword(!showPassword)}
+                            disabled={isLoading}
+                          >
+                            {showPassword ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-              </CardContent>
-              <CardFooter className="flex flex-col gap-4">
-                <Button type="submit" className="w-full" style={{ backgroundColor: 'hsl(var(--accent))', color: 'hsl(var(--accent-foreground))' }}>
-                  <LogIn className="mr-2 h-5 w-5"/>
-                  Sign In
+
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? "Signing in..." : "Sign In"}
                 </Button>
-                <p className="text-sm text-muted-foreground">
-                  Don't have an account?{" "}
-                  <Link href="/sign-up" className="font-medium text-primary hover:underline">
-                    Sign up
-                  </Link>
-                </p>
-              </CardFooter>
-            </form>
-          </Form>
+              </form>
+            </Form>
+
+            <div className="mt-6 text-center text-sm">
+              <span className="text-muted-foreground">
+                Don&apos;t have an account?{" "}
+              </span>
+              <Link
+                href="/sign-up"
+                className="font-medium text-primary hover:underline"
+              >
+                Sign up
+              </Link>
+            </div>
+          </CardContent>
         </Card>
       </div>
     </div>
