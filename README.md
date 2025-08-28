@@ -219,8 +219,4 @@ For support and questions:
 
 ---
 
-<<<<<<< HEAD
 **Made with ❤️ for Rwanda's transportation system**
-=======
-**Made with ❤️ for Rwanda's transportation system**
->>>>>>> a23f967b3dbc6a0e267de01e57af59877ac53189

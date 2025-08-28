@@ -94,10 +94,8 @@ async function main() {
     create: {
       name: 'Virunga Express',
       contact: '+250788777888',
-      
       description: 'Connecting northern Rwanda destinations',
       logoUrl: 'https://placehold.co/40x40.png',
-      
     },
   });
 

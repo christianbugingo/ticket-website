@@ -59,18 +59,19 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchUserData = async () => {
-      if (!session?.user?.email) return;
+    if (!session || !session.user?.email) {
+      setIsLoading(false);
+      return;
+    }
 
+    const fetchUserData = async () => {
       try {
-        // Fetch user profile
         const profileRes = await fetch("/api/user/profile");
         if (profileRes.ok) {
           const profileData = await profileRes.json();
           setUser(profileData);
         }
 
-        // Fetch user bookings
         const bookingsRes = await fetch("/api/user/bookings");
         if (bookingsRes.ok) {
           const bookingsData = await bookingsRes.json();
@@ -95,6 +96,7 @@ export default function DashboardPage() {
     },
     { href: "/dashboard/settings", label: "Account Settings", icon: Settings },
   ];
+
   if (!session) {
     return (
       <div className="flex items-center justify-center min-h-screen">

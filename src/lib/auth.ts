@@ -36,10 +36,8 @@ export const authOptions: NextAuthOptions = {
 
           // Return user object with required fields
           return {
-            id: user.id.toString(),
-            email: user.email,
-            name: user.name || null,
-            role: user.role
+            ...user,
+  id: user.id.toString(),
           };
         } catch (error) {
           console.error('Authentication error:', error);

@@ -22,10 +22,11 @@ export async function GET() {
     }
 
     // Find the company
-    const company = await prisma.busCompany.findUnique({
-      where: { contact: session.user.email },
-      select: { id: true },
-    });
+    const company = await prisma.busCompany.findFirst({
+  where: { contact: session.user.email },
+  select: { id: true },
+});
+
 
     if (!company) {
       return NextResponse.json({ error: 'Company not found' }, { status: 404 });

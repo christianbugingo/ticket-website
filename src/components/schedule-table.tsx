@@ -8,11 +8,13 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { Pencil, Trash2, Bus } from "lucide-react"
+import { Pencil, Trash2,Bus } from "lucide-react"
 import { ScheduleWithRelations } from "@/lib/types" // We'll define this type next
+import { Bus as BusType } from "@prisma/client"
 
 interface ScheduleTableProps {
   schedules: ScheduleWithRelations[]
+  buses:  BusType[]
 }
 
 export function ScheduleTable({ schedules }: ScheduleTableProps) {

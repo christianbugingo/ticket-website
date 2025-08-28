@@ -65,7 +65,7 @@ export default function BookingHistoryPage() {
 
   useEffect(() => {
     const fetchUserData = async () => {
-      if (!session?.user?.email) return;
+      if (!session || !session.user?.email) return;
 
       try {
         // Fetch user profile

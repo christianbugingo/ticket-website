@@ -32,7 +32,14 @@ model BusCompany {
   name        String    @db.VarChar(100)
   logoUrl     String?   @db.VarChar(255)
   contact     String    @db.VarChar(100)
+  email       String?    @unique
   description String?
+  phone             String?   @db.VarChar(20)
+  address           String?   @db.VarChar(255)
+  licenseNumber     String?   @db.VarChar(50)
+  status            String    @default("ACTIVE")
+  contactPersonName String?   @db.VarChar(100)
+  contactPersonPhone String?  @db.VarChar(20)
   owner       User?     @relation(fields: [ownerId], references: [id])
   ownerId     Int?
   buses       Bus[]
